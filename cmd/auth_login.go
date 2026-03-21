@@ -15,15 +15,15 @@ var authLoginCmd = &cobra.Command{
 	Short: "登录授权（获取 User Access Token）",
 	Long: `通过 OAuth 2.0 完成用户授权，支持两种模式:
 
-Authorization Code Flow（默认）:
+Device Flow（默认，RFC 8628）:
+  无需在飞书开放平台配置重定向 URL 白名单。
+  终端显示用户码，用户在任意浏览器打开链接输入用户码完成授权，命令自动轮询等待结果。
+
+Authorization Code Flow（--method code）:
   需要在飞书开放平台配置重定向 URL。
   · 本地桌面环境: 自动启动本地 HTTP 服务器并打开浏览器完成回调。
   · 远程 SSH 环境（自动检测或 --manual）: 打印授权 URL，手动复制回调 URL 粘贴到终端。
   · 非交互模式（--print-url）: 仅输出授权 URL JSON，配合 auth callback 两步完成。
-
-Device Flow（--method device，RFC 8628）:
-  无需在飞书开放平台配置重定向 URL 白名单。
-  终端显示用户码，用户在任意浏览器打开链接输入用户码完成授权，命令自动轮询等待结果。
 
 Token 保存位置: ~/.feishu-cli/token.json
 
@@ -32,25 +32,22 @@ Authorization Code Flow 前置条件:
   http://127.0.0.1:9768/callback
 
 示例:
-  # 自动检测环境
+  # 默认 Device Flow（无需配置重定向 URL 白名单）
   feishu-cli auth login
-
-  # 强制手动模式（SSH 远程环境）
-  feishu-cli auth login --manual
-
-  # 指定端口
-  feishu-cli auth login --port 8080
 
   # 指定 scope（建议带 offline_access 以获取 refresh_token）
   feishu-cli auth login --scopes "search:docs:read search:message offline_access"
 
-  # 非交互模式（AI Agent 推荐）
-  feishu-cli auth login --print-url
-  # 然后用户在浏览器完成授权后执行:
-  feishu-cli auth callback "<回调URL>" --state "<state>"
+  # Authorization Code Flow（需配置重定向 URL）
+  feishu-cli auth login --method code
 
-  # Device Flow（无需配置重定向 URL 白名单）
-  feishu-cli auth login --method device`,
+  # 强制手动模式（SSH 远程环境，Authorization Code Flow）
+  feishu-cli auth login --method code --manual
+
+  # 非交互模式（AI Agent 推荐，Authorization Code Flow）
+  feishu-cli auth login --method code --print-url
+  # 然后用户在浏览器完成授权后执行:
+  feishu-cli auth callback "<回调URL>" --state "<state>"`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := config.Validate(); err != nil {
 			return err
@@ -187,5 +184,5 @@ func init() {
 	authLoginCmd.Flags().Bool("no-manual", false, "强制使用本地回调模式（Authorization Code Flow）")
 	authLoginCmd.Flags().Bool("print-url", false, "仅输出授权 URL 和 state（Authorization Code Flow 非交互模式）")
 	authLoginCmd.Flags().String("scopes", "", "请求的 OAuth scope（空格分隔，如 \"search:docs:read offline_access\"）")
-	authLoginCmd.Flags().String("method", "code", "授权方式：code（Authorization Code Flow）或 device（Device Flow，无需配置重定向 URL）")
+	authLoginCmd.Flags().String("method", "device", "授权方式：device（Device Flow，无需配置重定向 URL）或 code（Authorization Code Flow）")
 }
